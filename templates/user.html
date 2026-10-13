@@ -1,0 +1,432 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人脸通行 - 用户刷脸</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "Microsoft YaHei", sans-serif;
+            background: linear-gradient(135deg, #0f172a, #1e1b4b, #312e81);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #fff;
+        }
+        .container {
+            text-align: center;
+            width: 500px;
+            padding: 20px;
+        }
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            color: #a5b4fc;
+            text-decoration: none;
+            font-size: 14px;
+            margin-bottom: 24px;
+            padding: 8px 16px;
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 8px;
+            transition: all 0.2s;
+        }
+        .back-btn:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .title {
+            font-size: 32px;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+        .subtitle {
+            color: #a5b4fc;
+            font-size: 15px;
+            margin-bottom: 30px;
+        }
+        .video-box {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 auto 24px;
+            aspect-ratio: 4/3;
+            border-radius: 16px;
+            overflow: hidden;
+            background: #000;
+            border: 3px solid rgba(99, 102, 241, 0.4);
+            position: relative;
+            box-shadow: 0 0 40px rgba(99, 102, 241, 0.15);
+        }
+        .video-box.recognizing {
+            border-color: #6366f1;
+            box-shadow: 0 0 60px rgba(99, 102, 241, 0.3);
+        }
+        .video-box video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .btn-scan {
+            padding: 14px 48px;
+            font-size: 18px;
+            font-weight: 700;
+            border: none;
+            border-radius: 12px;
+            background: linear-gradient(135deg, #6366f1, #4f46e5);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 1px;
+        }
+        .btn-scan:hover:not(:disabled) {
+            box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+            transform: translateY(-1px);
+        }
+        .btn-scan:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+        .timer {
+            font-size: 16px;
+            color: #a5b4fc;
+            margin-top: 16px;
+            min-height: 24px;
+            font-weight: 600;
+        }
+        .result-panel {
+            margin-top: 24px;
+            padding: 24px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            border: 1px solid rgba(255,255,255,0.1);
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+        .result-icon {
+            font-size: 48px;
+            margin-bottom: 4px;
+        }
+        .result-icon.allow { text-shadow: 0 0 20px rgba(34, 197, 94, 0.5); }
+        .result-icon.deny { text-shadow: 0 0 20px rgba(239, 68, 68, 0.5); }
+        .result-icon.waiting { opacity: 0.3; font-size: 36px; }
+        .result-text {
+            font-size: 22px;
+            font-weight: 800;
+        }
+        .result-detail {
+            font-size: 13px;
+            opacity: 0.6;
+        }
+        .btn-history {
+            display: none;
+            margin-top: 14px;
+            padding: 10px 28px;
+            font-size: 14px;
+            font-weight: 600;
+            border: 1.5px solid rgba(165,180,252,0.5);
+            border-radius: 10px;
+            background: rgba(99,102,241,0.15);
+            color: #a5b4fc;
+            cursor: pointer;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+        }
+        .btn-history:hover { background: rgba(99,102,241,0.3); color: #fff; border-color: #6366f1; }
+
+        /* 记录弹窗 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.7);
+            backdrop-filter: blur(4px);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-box {
+            background: #1e1b4b;
+            border: 1px solid rgba(99,102,241,0.4);
+            border-radius: 16px;
+            width: 520px;
+            max-width: 95vw;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .modal-header {
+            padding: 20px 24px 16px;
+            border-bottom: 1px solid rgba(255,255,255,0.08);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .modal-header h3 { font-size: 18px; font-weight: 700; color: #e0e7ff; }
+        .modal-header .modal-sub { font-size: 13px; color: #a5b4fc; margin-top: 2px; }
+        .modal-close {
+            background: none; border: none; color: #a5b4fc;
+            font-size: 22px; cursor: pointer; padding: 4px 8px;
+            border-radius: 6px; transition: all 0.2s;
+        }
+        .modal-close:hover { background: rgba(255,255,255,0.1); color: #fff; }
+        .modal-body {
+            overflow-y: auto;
+            padding: 16px 24px 20px;
+            flex: 1;
+        }
+        .modal-body::-webkit-scrollbar { width: 4px; }
+        .modal-body::-webkit-scrollbar-thumb { background: rgba(99,102,241,0.5); border-radius: 2px; }
+        .record-item {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+            padding: 12px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+        .record-item:last-child { border-bottom: none; }
+        .record-badge {
+            width: 36px; height: 36px; border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            font-size: 16px; flex-shrink: 0;
+        }
+        .record-badge.allow { background: rgba(34,197,94,0.15); }
+        .record-badge.deny  { background: rgba(239,68,68,0.15); }
+        .record-info { flex: 1; min-width: 0; }
+        .record-time { font-size: 14px; font-weight: 600; color: #e0e7ff; }
+        .record-meta { font-size: 12px; color: #94a3b8; margin-top: 2px; }
+        .record-result {
+            font-size: 12px; font-weight: 600; padding: 3px 10px;
+            border-radius: 99px; flex-shrink: 0;
+        }
+        .record-result.allow { background: rgba(34,197,94,0.15); color: #4ade80; }
+        .record-result.deny  { background: rgba(239,68,68,0.15);  color: #f87171; }
+        .record-empty {
+            text-align: center; padding: 40px 0;
+            color: #64748b; font-size: 14px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="/" class="back-btn">&#8592; 返回首页</a>
+        <h1 class="title">刷脸通行</h1>
+        <p class="subtitle">请面向摄像头，点击按钮开始识别</p>
+
+        <div class="video-box" id="user-video-box">
+            <video id="user-video" autoplay playsinline muted></video>
+        </div>
+
+        <button class="btn-scan" id="scan-btn" onclick="startScan()">开始识别 (3秒)</button>
+        <div class="timer" id="user-timer"></div>
+
+        <div class="result-panel" id="user-result">
+            <div class="result-icon waiting" id="result-icon">&#128064;</div>
+            <div class="result-text" id="result-text">等待识别</div>
+            <div class="result-detail" id="result-detail">点击上方按钮开始</div>
+            <button class="btn-history" id="btn-history" onclick="openHistory()">📋 查看我的通行记录</button>
+        </div>
+    </div>
+
+    <!-- 记录弹窗 -->
+    <div class="modal-overlay" id="history-modal" onclick="closeHistoryOutside(event)">
+        <div class="modal-box">
+            <div class="modal-header">
+                <div>
+                    <h3 id="modal-title">通行记录</h3>
+                    <div class="modal-sub" id="modal-sub"></div>
+                </div>
+                <button class="modal-close" onclick="closeHistory()">✕</button>
+            </div>
+            <div class="modal-body" id="modal-body">
+                <div class="record-empty">加载中...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let scanning = false;
+        let stream = null;
+        let currentPersonId = null;   // 识别成功后存储 person_id
+
+        (async () => {
+            try {
+                stream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                document.getElementById('user-video').srcObject = stream;
+            } catch (e) {
+                document.getElementById('result-text').textContent = '摄像头不可用';
+                document.getElementById('result-detail').textContent = e.message;
+            }
+        })();
+
+        function captureFrame() {
+            const video = document.getElementById('user-video');
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            return canvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        async function startScan() {
+            if (scanning) return;
+            if (!stream) {
+                alert('摄像头未就绪');
+                return;
+            }
+
+            // 先检查模型是否训练
+            try {
+                const statusResp = await fetch('/api/model/status');
+                const statusData = await statusResp.json();
+                if (!statusData.data || !statusData.data.trained) {
+                    alert('系统模型未训练，请联系管理员完成人脸注册和模型训练');
+                    return;
+                }
+            } catch (e) { /* ignore */ }
+
+            scanning = true;
+            currentPersonId = null;
+            const btn = document.getElementById('scan-btn');
+            const timerEl = document.getElementById('user-timer');
+            btn.disabled = true;
+            btn.textContent = '识别中...';
+            document.getElementById('user-video-box').classList.add('recognizing');
+            document.getElementById('btn-history').style.display = 'none';
+
+            // 重置结果
+            document.getElementById('result-icon').className = 'result-icon waiting';
+            document.getElementById('result-icon').textContent = '\u{1F440}';
+            document.getElementById('result-text').textContent = '识别中...';
+            document.getElementById('result-detail').textContent = '';
+
+            let frames = [];
+            const duration = 3;
+            const startTime = Date.now();
+
+            const interval = setInterval(() => {
+                const elapsed = (Date.now() - startTime) / 1000;
+                const remaining = Math.max(0, duration - elapsed);
+                timerEl.textContent = `剩余 ${remaining.toFixed(0)} 秒`;
+
+                frames.push(captureFrame());
+
+                if (elapsed >= duration) {
+                    clearInterval(interval);
+                    stopScan(frames);
+                }
+            }, 300);
+        }
+
+        async function stopScan(frames) {
+            const btn = document.getElementById('scan-btn');
+            const timerEl = document.getElementById('user-timer');
+            timerEl.textContent = '';
+            document.getElementById('user-video-box').classList.remove('recognizing');
+            scanning = false;
+            btn.disabled = false;
+            btn.textContent = '开始识别 (3秒)';
+
+            try {
+                const resp = await fetch('/api/recognize/quick', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images: frames })
+                });
+                const data = await resp.json();
+
+                if (data.success && data.data.verdict) {
+                    const v = data.data.verdict;
+                    const icon = document.getElementById('result-icon');
+                    if (v.result === '允许通行') {
+                        icon.className = 'result-icon allow';
+                        icon.textContent = '\u2705';
+                        // 识别成功 → 显示"查看记录"按钮
+                        currentPersonId = v.person_id;
+                        document.getElementById('btn-history').style.display = 'inline-block';
+                    } else {
+                        icon.className = 'result-icon deny';
+                        icon.textContent = '\u274C';
+                    }
+                    document.getElementById('result-text').textContent = v.result;
+                    document.getElementById('result-detail').textContent =
+                        `${v.name} | ${v.department} | 置信度 ${(100 - v.confidence).toFixed(1)}%`;
+                } else {
+                    document.getElementById('result-icon').className = 'result-icon deny';
+                    document.getElementById('result-icon').textContent = '\u274C';
+                    document.getElementById('result-text').textContent = '未检测到人脸';
+                    document.getElementById('result-detail').textContent = data.message || '';
+                }
+            } catch (e) {
+                document.getElementById('result-text').textContent = '识别失败';
+                document.getElementById('result-detail').textContent = e.message;
+            }
+        }
+
+        // ── 记录弹窗 ──────────────────────────────────────────
+        async function openHistory() {
+            if (!currentPersonId) return;
+            const modal = document.getElementById('history-modal');
+            const body  = document.getElementById('modal-body');
+            const title = document.getElementById('modal-title');
+            const sub   = document.getElementById('modal-sub');
+
+            const name = document.getElementById('result-detail').textContent.split('|')[0].trim();
+            title.textContent = name + ' 的通行记录';
+            sub.textContent   = '最近 20 条';
+            body.innerHTML    = '<div class="record-empty">加载中...</div>';
+            modal.classList.add('active');
+
+            try {
+                const resp = await fetch(`/api/records/user/${currentPersonId}?limit=20`);
+                const data = await resp.json();
+                if (data.success && data.data.records.length > 0) {
+                    sub.textContent = `共 ${data.data.total} 条，显示最近 ${data.data.records.length} 条`;
+                    body.innerHTML = data.data.records.map(r => {
+                        const isAllow = r.access_result === '允许通行';
+                        const cls   = isAllow ? 'allow' : 'deny';
+                        const emoji = isAllow ? '✅' : '❌';
+                        const conf  = isAllow ? `置信度 ${(100 - r.confidence).toFixed(1)}%` : '拒绝';
+                        return `
+                        <div class="record-item">
+                            <div class="record-badge ${cls}">${emoji}</div>
+                            <div class="record-info">
+                                <div class="record-time">${r.access_time}</div>
+                                <div class="record-meta">${r.date} &nbsp;·&nbsp; ${r.hour}:00 时段 &nbsp;·&nbsp; ${conf}</div>
+                            </div>
+                            <span class="record-result ${cls}">${r.access_result}</span>
+                        </div>`;
+                    }).join('');
+                } else {
+                    body.innerHTML = '<div class="record-empty">暂无通行记录</div>';
+                }
+            } catch (e) {
+                body.innerHTML = `<div class="record-empty">加载失败：${e.message}</div>`;
+            }
+        }
+
+        function closeHistory() {
+            document.getElementById('history-modal').classList.remove('active');
+        }
+
+        function closeHistoryOutside(e) {
+            if (e.target === document.getElementById('history-modal')) closeHistory();
+        }
+
+        // 键盘 ESC 关闭弹窗
+        document.addEventListener('keydown', e => {
+            if (e.key === 'Escape') closeHistory();
+        });
+
+        // 清理
+        window.addEventListener('beforeunload', () => {
+            if (stream) stream.getTracks().forEach(t => t.stop());
+        });
+    </script>
+</body>
+</html>

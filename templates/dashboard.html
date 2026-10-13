@@ -1,0 +1,842 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>人脸通行管控系统 - 管理后台</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <style>
+        *{margin:0;padding:0;box-sizing:border-box}
+        body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;background:#f1f5f9;color:#1e293b;display:flex;min-height:100vh}
+        :root{--w:230px}
+        
+        /* Sidebar */
+        .sidebar{width:var(--w);background:linear-gradient(180deg,#1e1b4b,#312e81,#1e1b4b);color:#a5b4fc;position:fixed;top:0;left:0;bottom:0;overflow-y:auto;z-index:100;display:flex;flex-direction:column}
+        .sidebar-brand{padding:22px 18px;display:flex;align-items:center;gap:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+        .sidebar-brand .icon{width:36px;height:36px;background:linear-gradient(135deg,#6366f1,rgba(99,102,241,.5));border-radius:10px;display:flex;align-items:center;justify-content:center;font-size:18px;color:#fff}
+        .sidebar-brand .text{font-size:15px;font-weight:700;color:#fff}
+        .sidebar-brand .sub{font-size:10px;opacity:.5}
+        .sidebar-nav{flex:1;padding:8px 0}
+        .nav-section{margin-bottom:4px}
+        .nav-title{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;padding:10px 20px 6px;opacity:.4}
+        .nav-item{display:flex;align-items:center;gap:10px;padding:11px 18px;margin:1px 10px;color:#a5b4fc;font-size:13px;font-weight:500;border-radius:8px;cursor:pointer;transition:all .15s;border:none;background:none;width:calc(100% - 20px);text-align:left;font-family:inherit}
+        .nav-item:hover{color:#fff;background:rgba(255,255,255,.06)}
+        .nav-item.active{color:#fff;background:rgba(99,102,241,.2);font-weight:600}
+        .sidebar-footer{padding:14px 16px;border-top:1px solid rgba(255,255,255,.06);display:flex;align-items:center;gap:10px}
+        .admin-avatar{width:34px;height:34px;background:linear-gradient(135deg,#6366f1,#7c3aed);border-radius:8px;display:flex;align-items:center;justify-content:center;color:#fff;font-size:13px;font-weight:700}
+        .admin-info-name{color:#fff;font-size:12px;font-weight:600}.admin-info-role{color:#a5b4fc;font-size:10px;opacity:.6}
+        .logout-btn{width:28px;height:28px;border-radius:6px;background:rgba(255,255,255,.08);border:none;color:#a5b4fc;cursor:pointer;font-size:12px;margin-left:auto;transition:all .15s;display:flex;align-items:center;justify-content:center}
+        .logout-btn:hover{background:#dc2626;color:#fff}
+
+        /* Main */
+        .main{margin-left:var(--w);flex:1;padding:24px 28px;min-height:100vh}
+        .panel{display:none;animation:fadeIn .3s}.panel.active{display:block}
+        @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+        .panel-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;flex-wrap:wrap;gap:10px}
+        .panel-header h2{font-size:24px;font-weight:700;color:#1e293b}
+        .panel-actions{display:flex;gap:8px;align-items:center}
+
+        /* Cards */
+        .stats-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:14px;margin-bottom:20px}
+        .stat-card{background:#fff;border-radius:12px;padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #e2e8f0;display:flex;align-items:center;gap:16px;transition:all .2s;cursor:default}
+        .stat-card:hover{transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.1)}
+        .stat-icon{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0}
+        .stat-icon.blue{background:linear-gradient(135deg,#eef2ff,#e0e7ff)}
+        .stat-icon.green{background:linear-gradient(135deg,#ecfdf5,#d1fae5)}
+        .stat-icon.red{background:linear-gradient(135deg,#fef2f2,#fee2e2)}
+        .stat-icon.orange{background:linear-gradient(135deg,#fff7ed,#ffedd5)}
+        .stat-icon.purple{background:linear-gradient(135deg,#faf5ff,#f3e8ff)}
+        .stat-icon.teal{background:linear-gradient(135deg,#f0fdfa,#ccfbf1)}
+        .stat-value{font-size:30px;font-weight:800;line-height:1.1}
+        .stat-label{font-size:12px;color:#94a3b8;margin-top:2px;font-weight:500}
+        .card{background:#fff;border-radius:12px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #e2e8f0;margin-bottom:16px;overflow:hidden}
+        .card-header{padding:14px 20px;border-bottom:1px solid #f1f5f9;background:#f8fafc;display:flex;align-items:center;justify-content:space-between}
+        .card-header h3{font-size:14px;font-weight:600}
+        .card-body{padding:20px}
+
+        /* Buttons */
+        .btn{padding:8px 18px;border:none;border-radius:8px;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;font-family:inherit;display:inline-flex;align-items:center;gap:6px}
+        .btn:disabled{opacity:.5;cursor:not-allowed}
+        .btn-primary{background:linear-gradient(135deg,#6366f1,#4f46e5);color:#fff}.btn-primary:hover:not(:disabled){box-shadow:0 4px 12px rgba(79,70,229,.35);transform:translateY(-1px)}
+        .btn-success{background:linear-gradient(135deg,#059669,#047857);color:#fff}.btn-success:hover:not(:disabled){box-shadow:0 4px 12px rgba(5,150,105,.35);transform:translateY(-1px)}
+        .btn-warning{background:linear-gradient(135deg,#d97706,#b45309);color:#fff}.btn-warning:hover:not(:disabled){box-shadow:0 4px 12px rgba(217,119,6,.35);transform:translateY(-1px)}
+        .btn-danger{background:linear-gradient(135deg,#dc2626,#b91c1c);color:#fff}.btn-danger:hover:not(:disabled){box-shadow:0 4px 12px rgba(220,38,38,.35);transform:translateY(-1px)}
+        .btn-secondary{background:#f1f5f9;color:#334155;border:1px solid #e2e8f0}.btn-secondary:hover:not(:disabled){background:#e2e8f0}
+        .btn-sm{padding:5px 12px;font-size:11px;border-radius:6px}
+        .btn-block{width:100%;justify-content:center}
+
+        /* Tables */
+        .data-table{width:100%;border-collapse:collapse}
+        .data-table th,.data-table td{padding:10px 14px;text-align:left;border-bottom:1px solid #f1f5f9;font-size:13px}
+        .data-table th{background:#f8fafc;font-weight:700;color:#64748b;font-size:11px;text-transform:uppercase;letter-spacing:.5px;white-space:nowrap}
+        .data-table tbody tr:hover{background:#eef2ff}
+        .badge{display:inline-flex;align-items:center;gap:4px;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600}
+        .badge-allow{background:#ecfdf5;color:#059669}.badge-allow::before{content:'';width:6px;height:6px;background:#059669;border-radius:50%}
+        .badge-deny{background:#fef2f2;color:#dc2626}.badge-deny::before{content:'';width:6px;height:6px;background:#dc2626;border-radius:50%}
+        .badge-face-yes{background:#eef2ff;color:#4f46e5}
+        .badge-face-no{background:#f8fafc;color:#94a3b8}
+
+        /* Search */
+        .search-box{position:relative}.search-box input{padding:9px 14px 9px 34px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:13px;width:220px;font-family:inherit;outline:none;transition:all .15s}
+        .search-box input:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08);width:260px}
+        .search-box::before{content:'\1F50D';position:absolute;left:10px;top:50%;transform:translateY(-50%);font-size:12px}
+
+        /* Forms */
+        .form-group{margin-bottom:16px}.form-group label{display:block;font-size:12px;font-weight:600;color:#475569;margin-bottom:5px}
+        .form-group input,.form-group select{width:100%;padding:10px 14px;border:1.5px solid #e2e8f0;border-radius:8px;font-size:14px;font-family:inherit;outline:none;transition:all .15s}
+        .form-group input:focus,.form-group select:focus{border-color:#6366f1;box-shadow:0 0 0 3px rgba(99,102,241,.08)}
+        .form-row{display:flex;gap:14px}.form-row .form-group{flex:1}
+
+        /* Modal */
+        .modal{display:none;position:fixed;inset:0;background:rgba(15,23,42,.6);z-index:1000;align-items:center;justify-content:center;padding:20px}
+        .modal.show{display:flex}
+        .modal-dialog{background:#fff;border-radius:14px;width:90%;max-width:500px;box-shadow:0 20px 50px rgba(0,0,0,.2);max-height:85vh;overflow-y:auto}
+        .modal-sm{max-width:380px}
+        .modal-header{padding:16px 24px;border-bottom:1px solid #f1f5f9;background:#f8fafc;display:flex;align-items:center;justify-content:space-between}
+        .modal-header h3{font-size:15px;font-weight:700}
+        .modal-close{width:30px;height:30px;border-radius:6px;border:1.5px solid #e2e8f0;background:#fff;cursor:pointer;font-size:16px;color:#94a3b8;display:flex;align-items:center;justify-content:center;transition:all .15s}
+        .modal-close:hover{background:#fef2f2;border-color:#dc2626;color:#dc2626}
+        .modal-body{padding:24px}
+        .modal-footer{padding:14px 24px;border-top:1px solid #f1f5f9;background:#f8fafc;display:flex;justify-content:flex-end;gap:8px}
+
+        /* Capture */
+        .capture-area{max-width:520px;margin:16px auto;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#000;border:2px solid #e2e8f0;position:relative}
+        .capture-area video{width:100%;height:100%;object-fit:cover}
+        .capture-overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
+        .capture-frame{width:220px;height:250px;border:3px dashed rgba(99,102,241,.5);border-radius:14px;position:relative}
+        .capture-frame::before,.capture-frame::after{content:'';position:absolute;width:18px;height:18px;border-color:#6366f1;border-style:solid}
+        .capture-frame::before{top:0;left:0;border-width:4px 0 0 4px;border-radius:4px 0 0 0}
+        .capture-frame::after{bottom:0;right:0;border-width:0 4px 4px 0;border-radius:0 0 4px 0}
+        .capture-progress{font-size:14px;font-weight:600;color:#4f46e5;min-width:120px}
+
+        /* Recognition */
+        .recognize-area{display:flex;gap:24px;flex-wrap:wrap}
+        .recognize-video-box{flex:1;min-width:300px;max-width:480px;aspect-ratio:4/3;border-radius:12px;overflow:hidden;background:#000;border:2px solid #e2e8f0;position:relative}
+        .recognize-video-box video{width:100%;height:100%;object-fit:cover}
+        .recognize-result-panel{flex:0 0 280px;background:#fff;border-radius:12px;padding:24px;box-shadow:0 1px 3px rgba(0,0,0,.06);border:1px solid #e2e8f0;display:flex;flex-direction:column;gap:14px}
+        .recognize-result-panel h3{font-size:14px;font-weight:700;border-bottom:2px solid #f1f5f9;padding-bottom:10px}
+        .verdict-placeholder{color:#94a3b8;font-size:13px;text-align:center;padding:30px 0;border:2px dashed #e2e8f0;border-radius:8px}
+        .verdict-status{font-size:48px;text-align:center}
+        .verdict-title{display:inline-block;font-size:16px;font-weight:700;padding:5px 20px;border-radius:20px;margin:8px 0;text-align:center;width:100%}
+        .verdict-title.allow{background:#ecfdf5;color:#059669}
+        .verdict-title.deny{background:#fef2f2;color:#dc2626}
+        .verdict-name{font-size:20px;font-weight:700;text-align:center;margin:4px 0}
+        .verdict-detail{font-size:12px;color:#94a3b8;text-align:center;line-height:1.8}
+        .verdict-detail span{display:inline-block;padding:2px 8px;background:#f8fafc;border-radius:4px;margin:0 2px}
+        .recognize-timer{font-size:14px;font-weight:700;color:#4f46e5}
+
+        /* Charts */
+        .charts-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(450px,1fr));gap:20px}
+        .chart-box{position:relative;height:320px}
+        .chart-box canvas{width:100%!important;height:100%!important}
+
+        /* Toast */
+        .toast-container{position:fixed;top:20px;right:20px;z-index:2000;display:flex;flex-direction:column;gap:8px}
+        .toast{padding:12px 18px;border-radius:10px;color:#fff;font-size:13px;font-weight:600;box-shadow:0 8px 24px rgba(0,0,0,.15);animation:slideIn .3s;min-width:260px}
+        @keyframes slideIn{from{transform:translateX(120%);opacity:0}to{transform:translateX(0);opacity:1}}
+        @keyframes slideOut{from{transform:translateX(0);opacity:1}to{transform:translateX(120%);opacity:0}}
+        .toast.hiding{animation:slideOut .3s forwards}
+        .toast-success{background:linear-gradient(135deg,#059669,#047857)}.toast-success::before{content:'\2713';margin-right:8px;font-weight:700}
+        .toast-error{background:linear-gradient(135deg,#dc2626,#b91c1c)}.toast-error::before{content:'\2717';margin-right:8px;font-weight:700}
+        .toast-info{background:linear-gradient(135deg,#4f46e5,#4338ca)}.toast-info::before{content:'\24D8';margin-right:8px;font-weight:700}
+        .toast-warning{background:linear-gradient(135deg,#d97706,#b45309)}.toast-warning::before{content:'\26A0';margin-right:8px;font-weight:700}
+
+        /* Pagination & Empty */
+        .pagination{display:flex;justify-content:center;align-items:center;gap:4px;padding:16px 0}
+        .pagination button{padding:6px 12px;border:1.5px solid #e2e8f0;border-radius:6px;background:#fff;cursor:pointer;font-size:12px;font-weight:500;transition:all .15s}
+        .pagination button.active{background:#4f46e5;color:#fff;border-color:#4f46e5}
+        .pagination button:hover:not(:disabled):not(.active){background:#eef2ff;border-color:#6366f1;color:#4f46e5}
+        .pagination button:disabled{opacity:.3;cursor:not-allowed}
+        .pagination-info{font-size:12px;color:#94a3b8;margin:0 10px}
+        .empty-state{text-align:center;padding:40px 20px;color:#94a3b8}
+        .empty-icon{font-size:40px;margin-bottom:8px;opacity:.3}
+        .table-container{overflow-x:auto;border-radius:8px}
+
+        /* Model status */
+        .status-dot{width:10px;height:10px;border-radius:50%}
+        .status-dot.green{background:#059669;box-shadow:0 0 0 3px rgba(5,150,105,.15)}
+        .status-dot.yellow{background:#d97706;box-shadow:0 0 0 3px rgba(217,119,6,.15)}
+        .status-dot.red{background:#dc2626;box-shadow:0 0 0 3px rgba(220,38,38,.15)}
+        .status-dot.gray{background:#94a3b8}
+
+        @media(max-width:768px){.sidebar{width:56px}.main{margin-left:56px;padding:14px}.stats-grid{grid-template-columns:repeat(auto-fill,minmax(130px,1fr))}}
+    </style>
+</head>
+<body class="dashboard-body">
+    <!-- Sidebar -->
+    <nav class="sidebar">
+        <div class="sidebar-brand">
+            <div class="icon">&#128065;</div>
+            <div>
+                <div class="text">人脸通行管控</div>
+                <div class="sub">Access Control</div>
+            </div>
+        </div>
+        <div class="sidebar-nav">
+            <div class="nav-section">
+                <div class="nav-title">主要功能</div>
+                <button class="nav-item active" data-panel="dashboard">&#128200; 系统概览</button>
+                <button class="nav-item" data-panel="persons">&#128101; 人员管理</button>
+                <button class="nav-item" data-panel="capture">&#128247; 人脸采集</button>
+                <button class="nav-item" data-panel="recognize">&#128270; 实时识别</button>
+            </div>
+            <div class="nav-section">
+                <div class="nav-title">数据与设置</div>
+                <button class="nav-item" data-panel="records">&#128196; 通行记录</button>
+                <button class="nav-item" data-panel="analytics">&#128202; 数据分析</button>
+                <button class="nav-item" data-panel="admins">&#128273; 账户管理</button>
+            </div>
+        </div>
+        <div class="sidebar-footer">
+            <div class="admin-avatar" id="admin-avatar-initial">A</div>
+            <div>
+                <div class="admin-info-name" id="admin-name">Admin</div>
+                <div class="admin-info-role">管理员</div>
+            </div>
+            <button class="logout-btn" onclick="logout()" title="退出登录">&#10149;</button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <div class="main">
+        <!-- Dashboard Panel -->
+        <div class="panel active" id="panel-dashboard">
+            <div class="panel-header"><h2>系统概览</h2></div>
+            <div class="stats-grid">
+                <div class="stat-card"><div class="stat-icon blue">&#128101;</div><div><div class="stat-value" id="stat-persons">0</div><div class="stat-label">注册人员</div></div></div>
+                <div class="stat-card"><div class="stat-icon green">&#9989;</div><div><div class="stat-value" id="stat-allows">0</div><div class="stat-label">允许通行</div></div></div>
+                <div class="stat-card"><div class="stat-icon red">&#10060;</div><div><div class="stat-value" id="stat-denies">0</div><div class="stat-label">拒绝通行</div></div></div>
+                <div class="stat-card"><div class="stat-icon orange">&#128576;</div><div><div class="stat-value" id="stat-unknown">0</div><div class="stat-label">陌生人</div></div></div>
+                <div class="stat-card"><div class="stat-icon purple">&#128337;</div><div><div class="stat-value" id="stat-today">0</div><div class="stat-label">今日通行</div></div></div>
+                <div class="stat-card"><div class="stat-icon teal">&#128202;</div><div><div class="stat-value" id="stat-total">0</div><div class="stat-label">总记录数</div></div></div>
+            </div>
+            <div class="card" style="margin-bottom:20px">
+                <div class="card-body">
+                    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px">
+                        <div>
+                            <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px">
+                                <span class="status-dot" id="model-dot"></span>
+                                <span id="model-status-text" style="font-weight:600">...</span>
+                            </div>
+                            <div style="font-size:13px;color:#94a3b8" id="model-info"></div>
+                        </div>
+                        <button class="btn btn-primary" onclick="trainModel()">&#9881; 训练模型</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Persons Panel -->
+        <div class="panel" id="panel-persons">
+            <div class="panel-header">
+                <h2>人员管理</h2>
+                <div class="panel-actions">
+                    <div class="search-box"><input type="text" id="person-search" placeholder="搜索姓名/部门..." oninput="loadPersons()"></div>
+                    <button class="btn btn-primary" onclick="openPersonModal()">&#10133; 新增人员</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead><tr><th>ID</th><th>姓名</th><th>部门</th><th>职务</th><th>权限</th><th>人脸</th><th>注册时间</th><th>操作</th></tr></thead>
+                        <tbody id="persons-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="persons-empty" class="empty-state" style="display:none"><div class="empty-icon">&#128101;</div><p>暂无人员，请点击"新增人员"</p></div>
+            </div>
+        </div>
+
+        <!-- Capture Panel -->
+        <div class="panel" id="panel-capture">
+            <div class="panel-header"><h2>人脸采集</h2></div>
+            <div class="card">
+                <div class="card-body">
+                    <div class="form-row" style="margin-bottom:16px">
+                        <div class="form-group">
+                            <label>选择人员</label>
+                            <select id="capture-person-select"></select>
+                        </div>
+                    </div>
+                    <div class="capture-area">
+                        <video id="capture-video" autoplay playsinline muted></video>
+                        <div class="capture-overlay">
+                            <div class="capture-frame"></div>
+                        </div>
+                    </div>
+                    <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:12px">
+                        <button class="btn btn-primary" id="manual-capture-btn" onclick="manualCapture()">&#128247; 手动采集一张</button>
+                        <span class="capture-progress" id="capture-progress"></span>
+                    </div>
+                    <div id="capture-log" style="font-size:12px;color:#94a3b8;margin-top:10px;max-height:120px;overflow-y:auto;padding:8px 12px;background:#f8fafc;border-radius:8px"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Recognize Panel -->
+        <div class="panel" id="panel-recognize">
+            <div class="panel-header"><h2>实时识别（3秒判定）</h2></div>
+            <div class="recognize-area">
+                <div class="recognize-video-box">
+                    <video id="recognize-video" autoplay playsinline muted></video>
+                </div>
+                <div class="recognize-result-panel">
+                    <h3>判定结果</h3>
+                    <div id="verdict-placeholder" class="verdict-placeholder">点击下方按钮开始识别</div>
+                    <div id="verdict-result-block" style="display:none">
+                        <div class="verdict-status" id="verdict-status"></div>
+                        <div class="verdict-name" id="verdict-name"></div>
+                        <div class="verdict-detail" id="verdict-detail"></div>
+                    </div>
+                </div>
+            </div>
+            <div style="display:flex;gap:12px;align-items:center;margin-top:16px">
+                <button class="btn btn-primary" id="recognize-btn" onclick="startRecognize()">&#9654; 开始识别 (3秒)</button>
+                <span class="recognize-timer" id="recognize-timer"></span>
+                <button class="btn btn-secondary" onclick="resetRecognize()">&#8635; 重置</button>
+            </div>
+        </div>
+
+        <!-- Records Panel -->
+        <div class="panel" id="panel-records">
+            <div class="panel-header">
+                <h2>通行记录</h2>
+                <div class="panel-actions">
+                    <button class="btn btn-secondary btn-sm" onclick="clearRecords()">&#128465; 清理记录</button>
+                </div>
+            </div>
+            <div class="card">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead><tr><th>记录ID</th><th>人员</th><th>部门</th><th>通行时间</th><th>结果</th><th>操作</th></tr></thead>
+                        <tbody id="records-tbody"></tbody>
+                    </table>
+                </div>
+                <div id="records-pagination" class="pagination"></div>
+                <div id="records-empty" class="empty-state" style="display:none"><div class="empty-icon">&#128196;</div><p>暂无通行记录</p></div>
+            </div>
+        </div>
+
+        <!-- Analytics Panel -->
+        <div class="panel" id="panel-analytics">
+            <div class="panel-header"><h2>数据分析</h2></div>
+            <div class="charts-grid">
+                <div class="card"><div class="card-header"><h3>每日通行趋势</h3></div><div class="card-body"><div class="chart-box"><canvas id="chart-daily"></canvas></div></div></div>
+                <div class="card"><div class="card-header"><h3>时段分布</h3></div><div class="card-body"><div class="chart-box"><canvas id="chart-hourly"></canvas></div></div></div>
+                <div class="card"><div class="card-header"><h3>通行结果分布</h3></div><div class="card-body"><div class="chart-box" style="height:280px"><canvas id="chart-pie"></canvas></div></div></div>
+                <div class="card"><div class="card-header"><h3>人员通行排行</h3></div><div class="card-body"><div class="chart-box"><canvas id="chart-top"></canvas></div></div></div>
+            </div>
+        </div>
+
+        <!-- Admins Panel -->
+        <div class="panel" id="panel-admins">
+            <div class="panel-header">
+                <h2>管理员账户</h2>
+                <button class="btn btn-primary btn-sm" onclick="openAddAdminModal()">&#10133; 添加管理员</button>
+            </div>
+            <div class="card">
+                <div class="table-container">
+                    <table class="data-table">
+                        <thead><tr><th>账号</th><th>创建时间</th><th>操作</th></tr></thead>
+                        <tbody id="admins-tbody"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Person Modal -->
+    <div class="modal" id="person-modal">
+        <div class="modal-dialog">
+            <div class="modal-header"><h3 id="person-modal-title">新增人员</h3><button class="modal-close" onclick="closePersonModal()">&times;</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="person-edit-id">
+                <div class="form-row"><div class="form-group"><label>姓名 *</label><input id="person-name" placeholder="请输入姓名"></div><div class="form-group"><label>部门</label><input id="person-dept" placeholder="部门名称"></div></div>
+                <div class="form-row"><div class="form-group"><label>职务</label><input id="person-role" placeholder="职务"></div><div class="form-group"><label>电话</label><input id="person-phone" placeholder="手机号"></div></div>
+                <div class="form-group"><label>通行权限</label><select id="person-perm"><option value="允许">允许通行</option><option value="拒绝">拒绝通行</option></select></div>
+                <div class="form-group"><label>备注</label><input id="person-remark" placeholder="备注信息（可选）"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closePersonModal()">取消</button>
+                <button class="btn btn-primary" onclick="savePerson()">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Modal -->
+    <div class="modal" id="confirm-modal">
+        <div class="modal-dialog modal-sm">
+            <div class="modal-header"><h3 id="confirm-title">确认操作</h3><button class="modal-close" onclick="closeConfirmModal()">&times;</button></div>
+            <div class="modal-body"><p id="confirm-msg" style="font-size:14px;color:#475569"></p></div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" onclick="closeConfirmModal()">取消</button>
+                <button class="btn btn-danger" id="confirm-yes-btn">确认</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container" id="toast-container"></div>
+
+    <script>
+        // ═══════════ Navigation ═══════════
+        document.querySelectorAll('.nav-item').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+                document.getElementById('panel-' + btn.dataset.panel).classList.add('active');
+                if (btn.dataset.panel === 'dashboard') refreshDashboard();
+                if (btn.dataset.panel === 'persons') loadPersons();
+                if (btn.dataset.panel === 'capture') initCapture();
+                if (btn.dataset.panel === 'recognize') initRecognize();
+                if (btn.dataset.panel === 'records') loadRecords();
+                if (btn.dataset.panel === 'analytics') loadAnalytics();
+                if (btn.dataset.panel === 'admins') loadAdmins();
+            });
+        });
+
+        // ═══════════ Auth ═══════════
+        (async () => {
+            try {
+                const resp = await fetch('/api/check-auth');
+                const data = await resp.json();
+                if (!data.success) { window.location.href = '/'; return; }
+                document.getElementById('admin-name').textContent = data.data.username;
+                document.getElementById('admin-avatar-initial').textContent = data.data.username.charAt(0).toUpperCase();
+                refreshDashboard();
+            } catch (e) { window.location.href = '/'; }
+        })();
+
+        async function logout() {
+            await fetch('/api/logout', { method: 'POST' });
+            window.location.href = '/';
+        }
+
+        // ═══════════ Toast ═══════════
+        function toast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const t = document.createElement('div');
+            t.className = 'toast toast-' + type;
+            t.textContent = msg;
+            container.appendChild(t);
+            setTimeout(() => { t.classList.add('hiding'); t.addEventListener('animationend', () => t.remove()); }, 3000);
+        }
+
+        // ═══════════ Dashboard ═══════════
+        async function refreshDashboard() {
+            try {
+                const resp = await fetch('/api/stats');
+                const s = (await resp.json()).data;
+                document.getElementById('stat-persons').textContent = s.total_persons;
+                document.getElementById('stat-allows').textContent = s.allow_count;
+                document.getElementById('stat-denies').textContent = s.deny_count;
+                document.getElementById('stat-unknown').textContent = s.unknown_count;
+                document.getElementById('stat-today').textContent = s.today_records;
+                document.getElementById('stat-total').textContent = s.total_records;
+
+                const dot = document.getElementById('model-dot');
+                const status = document.getElementById('model-status-text');
+                const info = document.getElementById('model-info');
+                if (s.model_trained) { dot.className = 'status-dot green'; status.textContent = '模型已训练'; info.textContent = s.total_persons + ' 名注册人员'; }
+                else { dot.className = 'status-dot yellow'; status.textContent = '模型未训练'; info.textContent = '请先注册人员并训练模型'; }
+            } catch (e) { }
+        }
+
+        async function trainModel() {
+            try {
+                const resp = await fetch('/api/model/train', { method: 'POST' });
+                const data = await resp.json();
+                toast(data.message, data.success ? 'success' : 'warning');
+                refreshDashboard();
+            } catch (e) { toast('训练请求失败', 'error'); }
+        }
+
+        // ═══════════ Persons CRUD ═══════════
+        async function loadPersons() {
+            const kw = document.getElementById('person-search').value;
+            try {
+                const resp = await fetch('/api/persons?keyword=' + encodeURIComponent(kw));
+                const persons = (await resp.json()).data;
+                const tbody = document.getElementById('persons-tbody');
+                const empty = document.getElementById('persons-empty');
+                if (!persons || persons.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; return; }
+                empty.style.display = 'none';
+                tbody.innerHTML = persons.map(p => `<tr>
+                    <td>${p.id}</td><td>${p.name}</td><td>${p.department}</td><td>${p.role||'-'}</td>
+                    <td><span class="badge ${p.permission==='允许'?'badge-allow':'badge-deny'}">${p.permission}</span></td>
+                    <td><span class="badge ${p.has_face?'badge-face-yes':'badge-face-no'}">${p.has_face?'已采集':'未采集'}</span></td>
+                    <td>${(p.register_time||'').slice(0,10)}</td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="editPerson(${p.id})">&#9998;编辑</button>
+                        <button class="btn btn-danger btn-sm" onclick="deletePerson(${p.id},'${p.name}')">&#128465;</button></td>
+                </tr>`).join('');
+            } catch (e) { toast('加载人员失败', 'error'); }
+        }
+
+        function openPersonModal(pid = null) {
+            document.getElementById('person-modal-title').textContent = pid ? '编辑人员' : '新增人员';
+            document.getElementById('person-edit-id').value = pid || '';
+            if (pid) {
+                fetch('/api/persons/' + pid).then(r => r.json()).then(d => {
+                    const p = d.data;
+                    document.getElementById('person-name').value = p.name || '';
+                    document.getElementById('person-dept').value = p.department || '';
+                    document.getElementById('person-role').value = p.role || '';
+                    document.getElementById('person-phone').value = p.phone || '';
+                    document.getElementById('person-perm').value = p.permission || '允许';
+                    document.getElementById('person-remark').value = p.remark || '';
+                });
+            } else {
+                ['name','dept','role','phone','remark'].forEach(id => document.getElementById('person-'+id).value = '');
+                document.getElementById('person-perm').value = '允许';
+            }
+            document.getElementById('person-modal').classList.add('show');
+        }
+
+        function editPerson(pid) { openPersonModal(pid); }
+        function closePersonModal() { document.getElementById('person-modal').classList.remove('show'); }
+
+        async function savePerson() {
+            const pid = document.getElementById('person-edit-id').value;
+            const payload = {
+                name: document.getElementById('person-name').value.trim(),
+                department: document.getElementById('person-dept').value.trim(),
+                role: document.getElementById('person-role').value.trim(),
+                phone: document.getElementById('person-phone').value.trim(),
+                permission: document.getElementById('person-perm').value,
+                remark: document.getElementById('person-remark').value.trim()
+            };
+            if (!payload.name) { toast('姓名不能为空', 'warning'); return; }
+            try {
+                const method = pid ? 'PUT' : 'POST';
+                const url = pid ? '/api/persons/' + pid : '/api/persons';
+                const resp = await fetch(url, { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+                const data = await resp.json();
+                toast(data.message, data.success ? 'success' : 'error');
+                if (data.success) { closePersonModal(); loadPersons(); refreshDashboard(); }
+            } catch (e) { toast('操作失败', 'error'); }
+        }
+
+        async function deletePerson(pid, name) {
+            showConfirm('确认删除人员「' + name + '」？此操作将同时删除人脸样本，不可恢复。', async () => {
+                try {
+                    const resp = await fetch('/api/persons/' + pid, { method: 'DELETE' });
+                    const data = await resp.json();
+                    toast(data.message, data.success ? 'success' : 'error');
+                    if (data.success) { loadPersons(); refreshDashboard(); }
+                } catch (e) { toast('删除失败', 'error'); }
+            });
+        }
+
+        // ═══════════ Confirm Modal ═══════════
+        function showConfirm(msg, onYes) {
+            document.getElementById('confirm-msg').textContent = msg;
+            document.getElementById('confirm-yes-btn').onclick = () => { closeConfirmModal(); onYes(); };
+            document.getElementById('confirm-modal').classList.add('show');
+        }
+        function closeConfirmModal() { document.getElementById('confirm-modal').classList.remove('show'); }
+
+        // ═══════════ Face Capture ═══════════
+        let captureStream = null;
+        async function initCapture() {
+            if (captureStream) return;
+            try {
+                captureStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                document.getElementById('capture-video').srcObject = captureStream;
+            } catch (e) { toast('摄像头不可用: ' + e.message, 'error'); }
+            // Load persons list
+            try {
+                const resp = await fetch('/api/persons');
+                const persons = (await resp.json()).data;
+                const sel = document.getElementById('capture-person-select');
+                sel.innerHTML = '<option value="">-- 选择人员 --</option>' + persons.map(p => `<option value="${p.id}">${p.name} (${p.department})</option>`).join('');
+            } catch (e) { }
+        }
+
+        function captureFrameFromVideo(videoId) {
+            const video = document.getElementById(videoId);
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth || 640;
+            canvas.height = video.videoHeight || 480;
+            canvas.getContext('2d').drawImage(video, 0, 0);
+            return canvas.toDataURL('image/jpeg', 0.8);
+        }
+
+        async function manualCapture() {
+            const pid = document.getElementById('capture-person-select').value;
+            if (!pid) { toast('请先选择人员', 'warning'); return; }
+            const img = captureFrameFromVideo('capture-video');
+            try {
+                const resp = await fetch('/api/face/capture', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ person_id: parseInt(pid), image: img })
+                });
+                const data = await resp.json();
+                if (data.success) {
+                    document.getElementById('capture-progress').textContent = '已采集 ' + data.data.sample_num + ' 张';
+                    document.getElementById('capture-log').innerHTML += '<div style="color:#059669">&#10003; ' + data.message + '</div>';
+                } else {
+                    document.getElementById('capture-log').innerHTML += '<div style="color:#dc2626">&#10007; ' + data.message + '</div>';
+                }
+            } catch (e) { toast('采集失败', 'error'); }
+        }
+
+        // ═══════════ Recognize ═══════════
+        let recognizeStream = null, recognizeScanning = false;
+        async function initRecognize() {
+            if (recognizeStream) return;
+            // 检查模型
+            try {
+                const statusResp = await fetch('/api/model/status');
+                const statusData = await statusResp.json();
+                if (!statusData.data.trained) {
+                    toast('模型未训练，请先注册人员并训练模型', 'warning');
+                    document.getElementById('verdict-placeholder').textContent = '模型未训练，请前往「系统概览」训练模型';
+                    return;
+                }
+            } catch (e) { }
+            try {
+                recognizeStream = await navigator.mediaDevices.getUserMedia({ video: { width: 640, height: 480 } });
+                document.getElementById('recognize-video').srcObject = recognizeStream;
+                toast('摄像头已就绪，请点击开始识别', 'success');
+            } catch (e) { toast('摄像头不可用: ' + e.message, 'error'); }
+        }
+
+        async function startRecognize() {
+            if (recognizeScanning) return;
+            if (!recognizeStream) { toast('请先初始化摄像头', 'warning'); return; }
+            recognizeScanning = true;
+            const btn = document.getElementById('recognize-btn');
+            btn.disabled = true; btn.textContent = '识别中...';
+            document.getElementById('verdict-placeholder').style.display = 'block';
+            document.getElementById('verdict-result-block').style.display = 'none';
+            let frames = [];
+            const duration = 3, startTime = Date.now();
+            const interval = setInterval(() => {
+                const remaining = Math.max(0, duration - (Date.now() - startTime) / 1000);
+                document.getElementById('recognize-timer').textContent = '剩余 ' + remaining.toFixed(0) + ' 秒';
+                frames.push(captureFrameFromVideo('recognize-video'));
+                if (Date.now() - startTime >= duration * 1000) {
+                    clearInterval(interval);
+                    finishRecognize(frames, btn);
+                }
+            }, 300);
+        }
+
+        async function finishRecognize(frames, btn) {
+            document.getElementById('recognize-timer').textContent = '';
+            try {
+                const resp = await fetch('/api/recognize/quick', {
+                    method: 'POST', headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ images: frames })
+                });
+                const data = await resp.json();
+                document.getElementById('verdict-placeholder').style.display = 'none';
+                document.getElementById('verdict-result-block').style.display = 'block';
+                if (data.success && data.data.verdict) {
+                    const v = data.data.verdict;
+                    document.getElementById('verdict-status').innerHTML = v.result === '允许通行' ? '&#9989;' : '&#10060;';
+                    document.getElementById('verdict-status').style.fontSize = '48px';
+                    const title = document.createElement('div');
+                    title.className = 'verdict-title ' + (v.result === '允许通行' ? 'allow' : 'deny');
+                    title.textContent = v.result;
+                    // Insert title
+                    const block = document.getElementById('verdict-result-block');
+                    const oldTitle = block.querySelector('.verdict-title');
+                    if (oldTitle) oldTitle.remove();
+                    block.insertBefore(title, document.getElementById('verdict-name'));
+                    document.getElementById('verdict-name').textContent = v.name;
+                    document.getElementById('verdict-detail').innerHTML = '<span>部门</span> ' + v.department + ' <span>置信度</span> ' + (100 - v.confidence).toFixed(1) + '% <span>权限</span> ' + v.permission;
+                } else {
+                    document.getElementById('verdict-status').innerHTML = '&#10060;';
+                    document.getElementById('verdict-name').textContent = '未检测到人脸';
+                    document.getElementById('verdict-detail').textContent = data.message || '';
+                }
+            } catch (e) { toast('识别失败', 'error'); }
+            btn.disabled = false; btn.textContent = '\u25B6 开始识别 (3秒)';
+            recognizeScanning = false;
+            refreshDashboard();
+        }
+
+        function resetRecognize() {
+            document.getElementById('verdict-placeholder').style.display = 'block';
+            document.getElementById('verdict-result-block').style.display = 'none';
+            document.getElementById('recognize-timer').textContent = '';
+            recognizeScanning = false;
+            document.getElementById('recognize-btn').disabled = false;
+            document.getElementById('recognize-btn').textContent = '\u25B6 开始识别 (3秒)';
+        }
+
+        // ═══════════ Records ═══════════
+        let recordsPage = 1, recordsTotal = 0;
+        async function loadRecords(page = 1) {
+            recordsPage = page;
+            try {
+                const resp = await fetch('/api/records?page=' + page + '&per_page=20');
+                const d = (await resp.json()).data;
+                const tbody = document.getElementById('records-tbody');
+                const empty = document.getElementById('records-empty');
+                recordsTotal = d.total || 0;
+                if (d.records.length === 0) { tbody.innerHTML = ''; empty.style.display = 'block'; document.getElementById('records-pagination').innerHTML = ''; return; }
+                empty.style.display = 'none';
+                tbody.innerHTML = d.records.map(r => `<tr>
+                    <td>${r.record_id}</td><td>${r.name}</td><td>${r.department}</td><td>${r.access_time}</td>
+                    <td><span class="badge ${r.access_result==='允许通行'?'badge-allow':'badge-deny'}">${r.access_result}</span></td>
+                    <td><button class="btn btn-danger btn-sm" onclick="deleteRecord(${r.record_id})">&#128465;</button></td>
+                </tr>`).join('');
+                // Pagination
+                const totalPages = Math.ceil(recordsTotal / 20);
+                let html = '';
+                for (let i = 1; i <= totalPages; i++) {
+                    html += '<button class="' + (i === page ? 'active' : '') + '" onclick="loadRecords(' + i + ')" ' + (i === page ? 'disabled' : '') + '>' + i + '</button>';
+                }
+                html = '<button onclick="loadRecords(' + (page - 1) + ')" ' + (page === 1 ? 'disabled' : '') + '>上一页</button>' + html + '<button onclick="loadRecords(' + (page + 1) + ')" ' + (page >= totalPages ? 'disabled' : '') + '>下一页</button><span class="pagination-info">共 ' + recordsTotal + ' 条</span>';
+                document.getElementById('records-pagination').innerHTML = html;
+            } catch (e) { }
+        }
+
+        async function deleteRecord(rid) {
+            showConfirm('确认删除此通行记录？', async () => {
+                try {
+                    const resp = await fetch('/api/records/' + rid, { method: 'DELETE' });
+                    const data = await resp.json();
+                    toast(data.message, data.success ? 'success' : 'error');
+                    if (data.success) loadRecords(recordsPage);
+                } catch (e) { toast('删除失败', 'error'); }
+            });
+        }
+
+        function clearRecords() {
+            const today = new Date().toISOString().slice(0, 10);
+            showConfirm('确认清理 ' + today + ' 之前的所有通行记录？此操作不可恢复。', async () => {
+                try {
+                    const resp = await fetch('/api/records/clear', {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ before_date: today })
+                    });
+                    const data = await resp.json();
+                    toast(data.message + '（已清除 ' + data.data.deleted + ' 条）', data.success ? 'success' : 'error');
+                    if (data.success) loadRecords(); refreshDashboard();
+                } catch (e) { toast('操作失败', 'error'); }
+            });
+        }
+
+        // ═══════════ Analytics ═══════════
+        let charts = {};
+        async function loadAnalytics() {
+            try {
+                const [daily, hourly, pie, top] = await Promise.all([
+                    fetch('/api/analytics/daily').then(r => r.json()),
+                    fetch('/api/analytics/hourly').then(r => r.json()),
+                    fetch('/api/analytics/result-pie').then(r => r.json()),
+                    fetch('/api/analytics/top-persons').then(r => r.json())
+                ]);
+                Object.values(charts).forEach(c => c.destroy());
+                charts = {};
+                if (daily.data.dates.length > 0) {
+                    charts.daily = new Chart(document.getElementById('chart-daily'), {
+                        type: 'line', data: { labels: daily.data.dates, datasets: [{ label: '通行次数', data: daily.data.counts, borderColor: '#6366f1', backgroundColor: 'rgba(99,102,241,.1)', fill: true, tension: .3 }] },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+                if (hourly.data.hours.length > 0) {
+                    charts.hourly = new Chart(document.getElementById('chart-hourly'), {
+                        type: 'bar', data: { labels: hourly.data.hours, datasets: [
+                            { label: '允许', data: hourly.data.allows, backgroundColor: '#34d399' },
+                            { label: '拒绝', data: hourly.data.denies, backgroundColor: '#f87171' }
+                        ]}, options: { responsive: true, maintainAspectRatio: false, scales: { x: { stacked: true }, y: { stacked: true } } }
+                    });
+                }
+                if (pie.data.labels.length > 0) {
+                    charts.pie = new Chart(document.getElementById('chart-pie'), {
+                        type: 'doughnut', data: { labels: pie.data.labels, datasets: [{ data: pie.data.values, backgroundColor: ['#34d399', '#f87171', '#fbbf24', '#60a5fa'] }] },
+                        options: { responsive: true, maintainAspectRatio: false }
+                    });
+                }
+                if (top.data.names.length > 0) {
+                    charts.top = new Chart(document.getElementById('chart-top'), {
+                        type: 'bar', data: { labels: top.data.names.reverse(), datasets: [{ label: '通行次数', data: top.data.counts.reverse(), backgroundColor: '#818cf8' }] },
+                        options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false }
+                    });
+                }
+            } catch (e) { }
+        }
+
+        // ═══════════ Admins ═══════════
+        async function loadAdmins() {
+            try {
+                const resp = await fetch('/api/admins');
+                const admins = (await resp.json()).data;
+                document.getElementById('admins-tbody').innerHTML = admins.map(a => `<tr>
+                    <td>${a.username}</td><td>${(a.create_time||'').slice(0,19)}</td>
+                    <td><button class="btn btn-secondary btn-sm" onclick="changePwd('${a.username}')">&#128274;改密</button>
+                        ${admins.length>1?'<button class="btn btn-danger btn-sm" onclick="deleteAdmin(\''+a.username+'\')">&#128465;</button>':''}</td>
+                </tr>`).join('');
+            } catch (e) { }
+        }
+
+        function openAddAdminModal() {
+            showForm('添加管理员', [
+                { label: '账号', id: 'add-admin-user', type: 'text' },
+                { label: '密码', id: 'add-admin-pass', type: 'password' }
+            ], async () => {
+                const user = document.getElementById('add-admin-user').value.trim();
+                const pass = document.getElementById('add-admin-pass').value.trim();
+                if (!user || !pass) { toast('账号密码不能为空', 'warning'); return; }
+                try {
+                    const resp = await fetch('/api/admins', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username: user, password: pass }) });
+                    const data = await resp.json();
+                    toast(data.message, data.success ? 'success' : 'error');
+                    if (data.success) { closePersonModal(); loadAdmins(); }
+                } catch (e) { toast('操作失败', 'error'); }
+            });
+        }
+
+        function changePwd(username) {
+            showForm('修改密码 - ' + username, [
+                { label: '新密码', id: 'chpwd-pass', type: 'password' }
+            ], async () => {
+                const pass = document.getElementById('chpwd-pass').value.trim();
+                if (!pass) { toast('密码不能为空', 'warning'); return; }
+                try {
+                    const resp = await fetch('/api/admins/password', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ username, password: pass }) });
+                    const data = await resp.json();
+                    toast(data.message, data.success ? 'success' : 'error');
+                    if (data.success) closePersonModal();
+                } catch (e) { toast('操作失败', 'error'); }
+            });
+        }
+
+        async function deleteAdmin(username) {
+            showConfirm('确认删除管理员「' + username + '」？', async () => {
+                try {
+                    const resp = await fetch('/api/admins/' + username, { method: 'DELETE' });
+                    const data = await resp.json();
+                    toast(data.message, data.success ? 'success' : 'error');
+                    if (data.success) loadAdmins();
+                } catch (e) { toast('删除失败', 'error'); }
+            });
+        }
+
+        function showForm(title, fields, onSave) {
+            document.getElementById('person-modal-title').textContent = title;
+            document.getElementById('person-edit-id').value = '_form';
+            // Build form
+            const body = document.querySelector('#person-modal .modal-body');
+            body.innerHTML = fields.map(f => `<div class="form-group"><label>${f.label}</label><input id="${f.id}" type="${f.type||'text'}"></div>`).join('');
+            // Store callback
+            body.dataset.saveCallback = '1';
+            document.getElementById('person-modal').classList.add('show');
+            // Override save
+            const saveBtn = document.querySelector('#person-modal .btn-primary');
+            saveBtn.onclick = async () => { await onSave(); };
+        }
+
+        // Cleanup
+        window.addEventListener('beforeunload', () => {
+            if (captureStream) captureStream.getTracks().forEach(t => t.stop());
+            if (recognizeStream) recognizeStream.getTracks().forEach(t => t.stop());
+        });
+    </script>
+</body>
+</html>

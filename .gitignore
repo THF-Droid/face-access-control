@@ -1,0 +1,31 @@
+# ── Python ──
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# ── IDE / 系统文件 ──
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# ── 本地配置（含数据库密码，切勿提交）──
+config.py
+.env
+
+# ── 敏感数据：人脸图像 / 训练模型 / 通行记录 ──
+data/faces/*
+!data/faces/.gitkeep
+data/*.csv
+data/charts/*
+!data/charts/.gitkeep
+data/records/*
+!data/records/.gitkeep
+models/*
+!models/.gitkeep
+
+# ── 课程报告文档（含个人信息）──
+*.docx
+~$*
